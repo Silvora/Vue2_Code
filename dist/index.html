@@ -9,31 +9,61 @@
 </head>
 
 <body>
+    <div id="app">
+        <!-- <div style="color:red">
+            {{name}}{{fullName}}
+            <span>----</span>
+            <div>{{age}}</div>
+            <div>
+                {{arr}}
+            </div>
+            {{op}}
+        </div> -->
+
+    </div>
     <script src="./vue.js"></script>
-    <script>
+    <!-- <script>
         const vm = new Vue({
-            data() {
-                return {
-                    name: "zjs",
-                    age: 24,
-                    arr: [1, 2, 4, 5, 6],
-                    op: {
-                        price: {
-                            a: 11,
-                            b: 55
-                        }
-                    },
-                    list: [
-                        { id: 1 },
-                        { id: 2 }
-                    ]
+            el: "#app",
+            data: {
+                name: "zjs",
+                age: 24,
+                arr: [1, 2, 4, 5, 6],
+                op: {
+                    price: {
+                        a: 11,
+                        b: 55
+                    }
+                },
+                list: [
+                    { id: 1 },
+                    { id: 2 }
+                ]
+            },
+            //计算属性也是一个watcher
+            computed: {
+                fullName() {
+                    return this.name + this.name
+                }
+            },
+
+            watch: {
+                age(per, old) {
+
+                    this.age = 15
+                    console.log(per, old, "2222")
                 }
             }
+
         })
+        // vm.arr.push(100)
+        // vm.op.c = 100
+        //debugger;
+        //vm.$watch(() => vm.age, (per, old) => { console.log(per, old, "2222") })
 
-        console.log(vm, vm.age)
+       // console.log(vm)
 
-    </script>
+    </script> -->
 </body>
 
 </html>

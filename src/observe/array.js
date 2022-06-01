@@ -42,9 +42,9 @@ methods.forEach(method => {
         }
 
         if (inserted) {
-            ob.observe(inserted)
+            ob.observeArray(inserted)
         }
-
+        ob.dep.notify()
         return result
     }
 })
