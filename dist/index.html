@@ -19,9 +19,24 @@
             </div>
             {{op}}
         </div> -->
+        <!-- <my></my> -->
 
     </div>
     <script src="./vue.js"></script>
+    <script>
+        // Vue.component("my", {
+        //     template: "<div>121212<div>"
+        // })
+        let Sub = Vue.extend({
+            template: "<div>11111<my></my> </div>",
+            components: {
+                "my": {
+                    template: "<div>121212<div>"
+                }
+            }
+        })
+        new Sub().$mount("#app")
+    </script>
     <!-- <script>
         const vm = new Vue({
             el: "#app",

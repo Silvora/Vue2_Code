@@ -820,6 +820,10 @@
   }
 
   //_h,_c
+  var isReservedTag = function isReservedTag(tag) {
+    return ["a", "div", "p", "button", "span"].includes(tag);
+  };
+
   function createElementVNode(vm, tag, data) {
     if (data == null) {
       data = {};
@@ -835,21 +839,46 @@
       children[_key - 3] = arguments[_key];
     }
 
-    return vNode(vm, tag, key, data, children);
+    if (isReservedTag(tag)) {
+      return vNode(vm, tag, key, data, children);
+    } else {
+      var Ctor = vm.$options.components[tag]; //return vNode(vm, tag, key, data, children)
+
+      return createComponentVNode(vm, tag, key, data, children, Ctor);
+    }
+  }
+
+  function createComponentVNode(vm, tag, key, data, children, Ctor) {
+    if (_typeof(Ctor) === "object") {
+      Ctor = vm.$options._base.extend(Ctor);
+    } //debugger;
+
+
+    data.hook = {
+      init: function init(vNode) {
+        var instance = vNode.componentInstance = new vNode.componentOptions.Ctor();
+        instance.$mount();
+      }
+    };
+    return vNode(vm, tag, key, data, children, null, {
+      Ctor: Ctor
+    });
   } //_v
+
 
   function createTextVNode(vm, text) {
     return vNode(vm, undefined, undefined, undefined, undefined, text);
   }
 
-  function vNode(vm, tag, key, data, children, text) {
+  function vNode(vm, tag, key, data, children, text, componentOptions) {
     return {
       vm: vm,
       tag: tag,
       key: key,
       data: data,
       children: children,
-      text: text
+      text: text,
+      componentOptions: componentOptions
     };
   }
 
@@ -885,17 +914,38 @@
       }
     }
   }
+
+  function createComponent(vNode) {
+    var v = vNode.data;
+
+    if ((v = v.hook) && (v = v.init)) {
+      v(vNode);
+    }
+
+    if (vNode.componentInstance) {
+      return true;
+    }
+  }
+
   function createElm(vNode) {
     //创建dom
+    //debugger;
     var tag = vNode.tag,
         data = vNode.data,
         children = vNode.children,
         text = vNode.text;
+    console.log(tag, vNode);
 
     if (typeof tag === "string") {
+      if (createComponent(vNode)) {
+        return vNode.componentInstance.$el;
+      }
+
       vNode.el = document.createElement(tag);
-      patchProps(vNode.el, {}, data);
+      patchProps(vNode.el, {}, data); //debugger;
+
       children.forEach(function (item) {
+        console.log(item);
         vNode.el.appendChild(createElm(item));
       });
     } else {
@@ -905,6 +955,7 @@
     return vNode.el;
   }
   function patch(oldVNode, vNode) {
+    if (!oldVNode) return createElm(vNode);
     var isRealElement = oldVNode.nodeType;
 
     if (isRealElement) {
@@ -1059,7 +1110,15 @@
       //有初始化和更新的功能
       var vm = this;
       var el = vm.$el;
-      vm.$el = patch(el, vNode);
+      var preVNode = vm._vNode;
+      vm._vNode = vNode;
+
+      if (preVNode) {
+        //判断是否dom，diff算法
+        vm.$el = patch(preVNode, vNode);
+      } else {
+        vm.$el = patch(el, vNode);
+      }
     };
 
     Vue.prototype._c = function () {
@@ -1095,12 +1154,65 @@
     //插入el中
   }
 
+  var starts = {};
+  var LIFECYCLE = ["beforeCreate", "created"];
+  LIFECYCLE.forEach(function (hook) {
+    starts[hook] = function (p, c) {
+      if (c) {
+        if (p) {
+          return p.concat(c);
+        } else {
+          return [c];
+        }
+      } else {
+        return p;
+      }
+    };
+  });
+
+  starts.components = function (parentVal, childVal) {
+    //debugger;
+    var res = parentVal ? Object.create(parentVal) : {};
+
+    if (childVal) {
+      for (var key in childVal) {
+        res[key] = childVal[key];
+      }
+    }
+
+    return res;
+  };
+
+  function mergeOptions(parent, child) {
+    var options = {};
+
+    for (var key in parent) {
+      mergeField(key);
+    }
+
+    for (var _key in child) {
+      if (!parent.hasOwnProperty(_key)) {
+        mergeField(_key);
+      }
+    }
+
+    function mergeField(key) {
+      if (starts[key]) {
+        options[key] = starts[key](parent[key], child[key]);
+      } else {
+        options[key] = child[key] || parent[key];
+      }
+    }
+
+    return options;
+  }
+
   function initMixin(Vue) {
     //給Vue增加init方法
     Vue.prototype._init = function (options) {
       //options用户选项
       var vm = this;
-      vm.$options = options; //Vue自己的属性
+      vm.$options = mergeOptions(this.constructor.options, options); //Vue自己的属性
 
       initState(vm); //初始化状态
 
@@ -1122,9 +1234,9 @@
           //没有模版，但有el
           template = el.outerHTML;
         } else {
-          if (el) {
-            template = ops.template; //如果有el，采用模版内容
-          }
+          // if (el) {
+          template = ops.template; //如果有el，采用模版内容
+          //}
         }
 
         if (template) {
@@ -1138,6 +1250,39 @@
     };
   }
 
+  function initGlobalAPI(Vue) {
+    //合并
+    Vue.options = {
+      _base: Vue
+    };
+
+    Vue.mixin = function (mixin) {
+      this.options = mergeOptions(this.options, mixin);
+      return this;
+    };
+
+    Vue.extend = function (options) {
+      //模版渲染
+      function Sub() {
+        var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+        this._init(options);
+      }
+
+      Sub.prototype = Object.create(Vue.prototype);
+      Sub.prototype.constructor = Sub;
+      Sub.options = mergeOptions(Vue.options, options);
+      return Sub;
+    };
+
+    Vue.options.component = {};
+
+    Vue.component = function (id, definition) {
+      definition = typeof definition === "function" ? definition : Vue.extend(definition);
+      Vue.options.component[id] = definition;
+    };
+  }
+
   function Vue(options) {
     //options用户选项
     this._init(options);
@@ -1148,28 +1293,8 @@
   initLifeCycle(Vue); //模版渲染
 
   initStateMixin(Vue); //nextTick，Watch
-  //------------------------------
 
-  var r1 = compileToFunction("  <ul>\n<li key=\"a\">a</li>\n<li key=\"b\">b</li>\n<li key=\"c\">c</li>\n<li key=\"d\">d</li>\n<li key=\"e\">e</li>\n</ul>");
-  var r2 = compileToFunction("  <ul>\n<li key=\"c\">c</li>\n<li key=\"a\">a</li>\n<li key=\"p\">p</li>\n<li key=\"d\">d</li>\n<li key=\"e\">e</li>\n<li key=\"i\">i</li>\n</ul>");
-  var v1 = new Vue({
-    data: {
-      name: "1"
-    }
-  });
-  var p1 = r1.call(v1);
-  var e1 = createElm(p1);
-  document.body.appendChild(e1);
-  var v2 = new Vue({
-    data: {
-      name: "2"
-    }
-  });
-  var p2 = r2.call(v2);
-  setTimeout(function () {
-    var e2 = createElm(p2);
-    e1.parentNode.replaceChild(e2, e1);
-  }, 5000);
+  initGlobalAPI(Vue); //------------------------------
 
   return Vue;
 

@@ -1,4 +1,4 @@
-import { isSameVNode } from "."
+import { isSameVNode } from "../vdom/index.js"
 
 export function patchProps(el, oldProps = {}, props = {}) {
 
@@ -31,13 +31,33 @@ export function patchProps(el, oldProps = {}, props = {}) {
 
 }
 
+function createComponent(vNode) {
+    let v = vNode.data
+    if ((v = v.hook) && (v = v.init)) {
+        v(vNode)
+    }
+    if (vNode.componentInstance) {
+        return true
+    }
+}
 export function createElm(vNode) {//创建dom
+    //debugger;
     let { tag, data, children, text } = vNode
+    console.log(tag, vNode)
     if (typeof tag === "string") {
+
+        if (createComponent(vNode)) {
+            return vNode.componentInstance.$el
+        }
         vNode.el = document.createElement(tag)
         patchProps(vNode.el, {}, data)
+        //debugger;
+
         children.forEach(item => {
+            console.log(item)
             vNode.el.appendChild(createElm(item))
+
+
         });
     } else {
         vNode.el = document.createTextNode(text)
@@ -47,6 +67,8 @@ export function createElm(vNode) {//创建dom
 }
 
 export function patch(oldVNode, vNode) {
+
+    if (!oldVNode) { return createElm(vNode) }
 
     const isRealElement = oldVNode.nodeType
 

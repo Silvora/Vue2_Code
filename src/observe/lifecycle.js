@@ -9,7 +9,16 @@ export function initLifeCycle(Vue) {
         //有初始化和更新的功能
         const vm = this
         const el = vm.$el
-        vm.$el = patch(el, vNode)
+        const preVNode = vm._vNode
+        vm._vNode = vNode
+        if (preVNode) {//判断是否dom，diff算法
+            vm.$el = patch(preVNode, vNode)
+
+        } else {
+            vm.$el = patch(el, vNode)
+
+        }
+
     }
     Vue.prototype._c = function () {
         return createElementVNode(this, ...arguments)

@@ -1,10 +1,11 @@
 import { initState } from "./state"
 import { compileToFunction } from "./compiler/index"
 import { mountComponent } from "./observe/lifecycle"
+import { mergeOptions } from "./utils"
 export function initMixin(Vue) {//給Vue增加init方法
     Vue.prototype._init = function (options) {//options用户选项
         const vm = this
-        vm.$options = options//Vue自己的属性
+        vm.$options = mergeOptions(this.constructor.options, options)//Vue自己的属性
 
         initState(vm)//初始化状态
 
@@ -24,9 +25,9 @@ export function initMixin(Vue) {//給Vue增加init方法
             if (!ops.template && el) {//没有模版，但有el
                 template = el.outerHTML
             } else {
-                if (el) {
-                    template = ops.template//如果有el，采用模版内容
-                }
+                // if (el) {
+                template = ops.template//如果有el，采用模版内容
+                //}
             }
             if (template) {//是否有template，有就用
                 const render = compileToFunction(template)
